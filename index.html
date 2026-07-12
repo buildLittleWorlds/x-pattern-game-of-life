@@ -1,0 +1,704 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Conway X Seed Sandbox</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f4ef;
+      --panel: #ffffff;
+      --ink: #1d2528;
+      --muted: #627174;
+      --line: #d9dedb;
+      --cell: #16363b;
+      --cell-soft: #28595f;
+      --accent: #8a3b2f;
+      --accent-2: #d98e5f;
+      --shadow: 0 16px 40px rgba(25, 31, 33, 0.1);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at top left, rgba(217, 142, 95, 0.18), transparent 34rem),
+        linear-gradient(135deg, #fbfaf6 0%, var(--bg) 52%, #edf1ef 100%);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+
+    main {
+      width: min(1180px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 28px 0 36px;
+    }
+
+    header {
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(1.8rem, 4vw, 3rem);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      max-width: 790px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.5;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: minmax(320px, 1fr) minmax(300px, 380px);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .stage,
+    .panel {
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid rgba(29, 37, 40, 0.08);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .stage {
+      padding: clamp(10px, 2vw, 18px);
+    }
+
+    .canvas-wrap {
+      width: 100%;
+      max-width: 760px;
+      margin: 0 auto;
+      aspect-ratio: 1;
+    }
+
+    #lifeCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border: 1px solid #c7d0cc;
+      border-radius: 6px;
+      background: #eef1ed;
+      touch-action: manipulation;
+      cursor: crosshair;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-top: 14px;
+    }
+
+    button {
+      border: 1px solid #c9d1cd;
+      background: #fff;
+      color: var(--ink);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font: inherit;
+      font-weight: 650;
+      cursor: pointer;
+      transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+    }
+
+    button:hover {
+      border-color: #94a29d;
+      transform: translateY(-1px);
+    }
+
+    button.primary {
+      background: var(--cell);
+      border-color: var(--cell);
+      color: #fff;
+    }
+
+    button.danger {
+      color: #7a261b;
+    }
+
+    .sliders {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(220px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    label {
+      display: grid;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.3;
+    }
+
+    .label-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .label-row strong {
+      color: var(--ink);
+      font-weight: 700;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .panel {
+      padding: 18px;
+    }
+
+    .panel + .panel {
+      margin-top: 14px;
+    }
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 1.05rem;
+      letter-spacing: 0;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      min-width: 0;
+      background: #fbfcfa;
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 4px;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 1.1rem;
+      overflow-wrap: anywhere;
+    }
+
+    #statusText {
+      color: var(--accent);
+    }
+
+    #populationChart {
+      display: block;
+      width: 100%;
+      height: 96px;
+      margin-top: 14px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fbfcfa;
+    }
+
+    .note {
+      color: var(--muted);
+      font-size: 0.94rem;
+      line-height: 1.55;
+      margin: 0;
+    }
+
+    .fine-print {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.4;
+    }
+
+    @media (max-width: 860px) {
+      main {
+        width: min(100% - 20px, 760px);
+        padding-top: 20px;
+      }
+
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .sliders {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 460px) {
+      .controls {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+
+      button {
+        width: 100%;
+      }
+
+      .metrics {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Conway X Seed Sandbox</h1>
+      <p class="subtitle">A finite Conway's Game of Life board for studying one symmetric 13-cell X seed, with live population, fingerprint, symmetry, and state detection.</p>
+    </header>
+
+    <section class="app" aria-label="Game of Life sandbox">
+      <div class="stage">
+        <div class="canvas-wrap">
+          <canvas id="lifeCanvas" aria-label="Conway's Game of Life grid"></canvas>
+        </div>
+
+        <div class="controls" aria-label="Simulation controls">
+          <button id="runPause" class="primary" type="button">Run</button>
+          <button id="stepOnce" type="button">Step Once</button>
+          <button id="resetSeed" type="button">Reset to X seed</button>
+          <button id="clearBoard" class="danger" type="button">Clear Board</button>
+        </div>
+
+        <div class="sliders">
+          <label>
+            <span class="label-row"><strong>Speed</strong><span id="speedReadout">10 steps/sec</span></span>
+            <input id="speedSlider" type="range" min="1" max="30" value="10">
+          </label>
+
+          <label>
+            <span class="label-row"><strong>Execution noise</strong><span id="noiseReadout">0%</span></span>
+            <input id="noiseSlider" type="range" min="0" max="20" value="0" step="1">
+            <span>Non-standard noisy variant; flipped last step: <strong id="flipCount">0</strong></span>
+          </label>
+        </div>
+      </div>
+
+      <aside>
+        <div class="panel" aria-live="polite">
+          <h2>Live Analysis</h2>
+          <div class="metrics">
+            <div class="metric"><span>Generation</span><strong id="generation">0</strong></div>
+            <div class="metric"><span>Living Cells</span><strong id="livingCount">13</strong></div>
+            <div class="metric"><span>Status</span><strong id="statusText">RUNNING</strong></div>
+            <div class="metric"><span>Reached</span><strong id="statusReached">Gen 0</strong></div>
+            <div class="metric"><span>Fingerprint</span><strong id="fingerprint">-</strong></div>
+            <div class="metric"><span>4-Fold Symmetry</span><strong id="symmetry">Yes</strong></div>
+          </div>
+          <canvas id="populationChart" width="680" height="192" aria-label="Rolling population chart"></canvas>
+          <p class="fine-print">State history keeps the most recent 240 fingerprints. Periodic status means the current fingerprint matched an earlier one in that window.</p>
+        </div>
+
+        <div class="panel">
+          <h2>Experiment Note</h2>
+          <p class="note">At 0% noise, this system is fully deterministic: the same seed and the same B3/S23 rule produce the same outcome every run, analogous to an LLM at temperature 0. Raising execution noise is a loose analog of raising sampling temperature: it introduces run-to-run divergence without changing the starting seed or the rule.</p>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <script>
+    "use strict";
+
+    const ROWS = 51;
+    const COLS = 51;
+    const HISTORY_LIMIT = 240;
+    const CHART_LIMIT = 90;
+
+    // Editable seed pattern: a centered 13-cell saltire / X.
+    // Swap these [row, col] coordinates to test a different starting pattern.
+    const X_SEED = [
+      [25, 25],
+      [22, 22], [23, 23], [24, 24],
+      [26, 26], [27, 27], [28, 28],
+      [22, 28], [23, 27], [24, 26],
+      [26, 24], [27, 23], [28, 22]
+    ];
+
+    const canvas = document.getElementById("lifeCanvas");
+    const ctx = canvas.getContext("2d");
+    const chartCanvas = document.getElementById("populationChart");
+    const chartCtx = chartCanvas.getContext("2d");
+
+    const runPauseButton = document.getElementById("runPause");
+    const stepButton = document.getElementById("stepOnce");
+    const resetButton = document.getElementById("resetSeed");
+    const clearButton = document.getElementById("clearBoard");
+    const speedSlider = document.getElementById("speedSlider");
+    const noiseSlider = document.getElementById("noiseSlider");
+
+    const generationEl = document.getElementById("generation");
+    const livingCountEl = document.getElementById("livingCount");
+    const statusTextEl = document.getElementById("statusText");
+    const statusReachedEl = document.getElementById("statusReached");
+    const fingerprintEl = document.getElementById("fingerprint");
+    const symmetryEl = document.getElementById("symmetry");
+    const flipCountEl = document.getElementById("flipCount");
+    const speedReadoutEl = document.getElementById("speedReadout");
+    const noiseReadoutEl = document.getElementById("noiseReadout");
+
+    let grid = makeGrid();
+    let generation = 0;
+    let running = false;
+    let timerId = null;
+    let cellSize = 14;
+    let lastFlipCount = 0;
+    let populationHistory = [];
+    let fingerprintHistory = [];
+    let seenFingerprints = new Map();
+    let currentStatusLabel = "READY";
+    let currentStatusReached = 0;
+
+    function makeGrid() {
+      return Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+    }
+
+    function resetToSeed() {
+      grid = makeGrid();
+      for (const [row, col] of X_SEED) {
+        if (inBounds(row, col)) grid[row][col] = true;
+      }
+      generation = 0;
+      lastFlipCount = 0;
+      populationHistory = [];
+      fingerprintHistory = [];
+      seenFingerprints = new Map();
+      currentStatusLabel = "READY";
+      currentStatusReached = 0;
+      draw();
+      updateAnalysis();
+    }
+
+    function inBounds(row, col) {
+      return row >= 0 && row < ROWS && col >= 0 && col < COLS;
+    }
+
+    function countNeighbors(row, col) {
+      let count = 0;
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          if (dr === 0 && dc === 0) continue;
+          const nr = row + dr;
+          const nc = col + dc;
+          if (inBounds(nr, nc) && grid[nr][nc]) count++;
+        }
+      }
+      return count;
+    }
+
+    function step() {
+      const next = makeGrid();
+      for (let row = 0; row < ROWS; row++) {
+        for (let col = 0; col < COLS; col++) {
+          const neighbors = countNeighbors(row, col);
+          next[row][col] = grid[row][col]
+            ? neighbors === 2 || neighbors === 3
+            : neighbors === 3;
+        }
+      }
+
+      const noiseProbability = Number(noiseSlider.value) / 100;
+      lastFlipCount = 0;
+      if (noiseProbability > 0) {
+        for (let row = 0; row < ROWS; row++) {
+          for (let col = 0; col < COLS; col++) {
+            if (Math.random() < noiseProbability) {
+              next[row][col] = !next[row][col];
+              lastFlipCount++;
+            }
+          }
+        }
+      }
+
+      grid = next;
+      generation++;
+      draw();
+      updateAnalysis();
+    }
+
+    function livingCells() {
+      let count = 0;
+      for (let row = 0; row < ROWS; row++) {
+        for (let col = 0; col < COLS; col++) {
+          if (grid[row][col]) count++;
+        }
+      }
+      return count;
+    }
+
+    function boardFingerprint() {
+      let hash = 2166136261;
+      let alive = 0;
+      for (let row = 0; row < ROWS; row++) {
+        for (let col = 0; col < COLS; col++) {
+          if (!grid[row][col]) continue;
+          alive++;
+          const value = row * COLS + col + 1;
+          hash ^= value & 255;
+          hash = Math.imul(hash, 16777619);
+          hash ^= (value >>> 8) & 255;
+          hash = Math.imul(hash, 16777619);
+        }
+      }
+      const unsignedHash = (hash >>> 0).toString(16).padStart(8, "0");
+      return `g${ROWS}x${COLS}-n${alive}-${unsignedHash}`;
+    }
+
+    function hasFourFoldSymmetry() {
+      if (ROWS !== COLS) return false;
+      const max = ROWS - 1;
+      for (let row = 0; row < ROWS; row++) {
+        for (let col = 0; col < COLS; col++) {
+          const value = grid[row][col];
+          if (grid[col][max - row] !== value) return false;
+          if (grid[max - row][max - col] !== value) return false;
+          if (grid[max - col][row] !== value) return false;
+        }
+      }
+      return true;
+    }
+
+    function detectState(fingerprint, population) {
+      const previous = fingerprintHistory[fingerprintHistory.length - 1];
+      if (population === 0) {
+        return { label: "EXTINCT" };
+      }
+      if (previous && previous.fingerprint === fingerprint) {
+        return { label: "STATIC" };
+      }
+      if (seenFingerprints.has(fingerprint)) {
+        const earlierGeneration = seenFingerprints.get(fingerprint);
+        const period = generation - earlierGeneration;
+        return { label: `PERIODIC (${period})` };
+      }
+      return { label: running ? "RUNNING" : "READY" };
+    }
+
+    function rememberFingerprint(fingerprint) {
+      fingerprintHistory.push({ generation, fingerprint });
+      seenFingerprints.set(fingerprint, generation);
+      while (fingerprintHistory.length > HISTORY_LIMIT) {
+        const old = fingerprintHistory.shift();
+        const stillPresent = fingerprintHistory.some(item => item.fingerprint === old.fingerprint);
+        if (!stillPresent) seenFingerprints.delete(old.fingerprint);
+      }
+    }
+
+    function updateAnalysis() {
+      const population = livingCells();
+      const fingerprint = boardFingerprint();
+      const status = detectState(fingerprint, population);
+      if (status.label !== currentStatusLabel) {
+        currentStatusLabel = status.label;
+        currentStatusReached = generation;
+      }
+
+      populationHistory.push(population);
+      if (populationHistory.length > CHART_LIMIT) populationHistory.shift();
+
+      generationEl.textContent = String(generation);
+      livingCountEl.textContent = String(population);
+      statusTextEl.textContent = currentStatusLabel;
+      statusReachedEl.textContent = `Gen ${currentStatusReached}`;
+      fingerprintEl.textContent = fingerprint;
+      symmetryEl.textContent = hasFourFoldSymmetry() ? "Yes" : "No";
+      flipCountEl.textContent = String(lastFlipCount);
+
+      drawChart();
+      rememberFingerprint(fingerprint);
+    }
+
+    function draw() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const side = Math.max(1, Math.floor(rect.width || 714));
+      canvas.width = Math.floor(side * dpr);
+      canvas.height = Math.floor(side * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      cellSize = side / COLS;
+
+      ctx.clearRect(0, 0, side, side);
+      ctx.fillStyle = "#eef1ed";
+      ctx.fillRect(0, 0, side, side);
+
+      ctx.strokeStyle = "rgba(22, 54, 59, 0.12)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i = 0; i <= COLS; i++) {
+        const x = Math.round(i * cellSize) + 0.5;
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, side);
+      }
+      for (let i = 0; i <= ROWS; i++) {
+        const y = Math.round(i * cellSize) + 0.5;
+        ctx.moveTo(0, y);
+        ctx.lineTo(side, y);
+      }
+      ctx.stroke();
+
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--cell").trim() || "#16363b";
+      const inset = Math.max(1, cellSize * 0.11);
+      for (let row = 0; row < ROWS; row++) {
+        for (let col = 0; col < COLS; col++) {
+          if (!grid[row][col]) continue;
+          ctx.fillRect(
+            col * cellSize + inset,
+            row * cellSize + inset,
+            Math.max(1, cellSize - inset * 2),
+            Math.max(1, cellSize - inset * 2)
+          );
+        }
+      }
+    }
+
+    function drawChart() {
+      const width = chartCanvas.width;
+      const height = chartCanvas.height;
+      chartCtx.clearRect(0, 0, width, height);
+      chartCtx.fillStyle = "#fbfcfa";
+      chartCtx.fillRect(0, 0, width, height);
+
+      chartCtx.strokeStyle = "rgba(29, 37, 40, 0.09)";
+      chartCtx.lineWidth = 1;
+      for (let i = 1; i < 4; i++) {
+        const y = (height / 4) * i;
+        chartCtx.beginPath();
+        chartCtx.moveTo(0, y);
+        chartCtx.lineTo(width, y);
+        chartCtx.stroke();
+      }
+
+      if (populationHistory.length < 2) return;
+      const maxPopulation = Math.max(1, ...populationHistory);
+      const xStep = width / Math.max(1, CHART_LIMIT - 1);
+
+      chartCtx.strokeStyle = "#8a3b2f";
+      chartCtx.lineWidth = 4;
+      chartCtx.lineJoin = "round";
+      chartCtx.lineCap = "round";
+      chartCtx.beginPath();
+
+      populationHistory.forEach((value, index) => {
+        const x = index * xStep;
+        const y = height - (value / maxPopulation) * (height - 18) - 9;
+        if (index === 0) chartCtx.moveTo(x, y);
+        else chartCtx.lineTo(x, y);
+      });
+      chartCtx.stroke();
+    }
+
+    function toggleCellFromPointer(event) {
+      if (running) return;
+      const rect = canvas.getBoundingClientRect();
+      const col = Math.floor((event.clientX - rect.left) / cellSize);
+      const row = Math.floor((event.clientY - rect.top) / cellSize);
+      if (!inBounds(row, col)) return;
+      grid[row][col] = !grid[row][col];
+      lastFlipCount = 0;
+      generation = 0;
+      populationHistory = [];
+      fingerprintHistory = [];
+      seenFingerprints = new Map();
+      currentStatusLabel = "READY";
+      currentStatusReached = 0;
+      draw();
+      updateAnalysis();
+    }
+
+    function setRunning(shouldRun) {
+      running = shouldRun;
+      runPauseButton.textContent = running ? "Pause" : "Run";
+      runPauseButton.classList.toggle("primary", !running);
+      if (timerId) {
+        clearInterval(timerId);
+        timerId = null;
+      }
+      if (running) {
+        const intervalMs = 1000 / Number(speedSlider.value);
+        timerId = setInterval(step, intervalMs);
+      }
+      updateAnalysisWithoutHistoryMutation();
+    }
+
+    function updateAnalysisWithoutHistoryMutation() {
+      const population = livingCells();
+      const fingerprint = boardFingerprint();
+      const previous = fingerprintHistory[fingerprintHistory.length - 1];
+      const knownGeneration = seenFingerprints.get(fingerprint);
+      generationEl.textContent = String(generation);
+      livingCountEl.textContent = String(population);
+      fingerprintEl.textContent = fingerprint;
+      symmetryEl.textContent = hasFourFoldSymmetry() ? "Yes" : "No";
+      flipCountEl.textContent = String(lastFlipCount);
+      if (population === 0) statusTextEl.textContent = "EXTINCT";
+      else if (previous && previous.fingerprint === fingerprint) statusTextEl.textContent = "STATIC";
+      else if (knownGeneration !== undefined && knownGeneration !== generation) statusTextEl.textContent = `PERIODIC (${generation - knownGeneration})`;
+      else statusTextEl.textContent = running ? "RUNNING" : "READY";
+      if (statusTextEl.textContent !== currentStatusLabel) {
+        currentStatusLabel = statusTextEl.textContent;
+        currentStatusReached = generation;
+      }
+      statusReachedEl.textContent = `Gen ${currentStatusReached}`;
+    }
+
+    runPauseButton.addEventListener("click", () => setRunning(!running));
+    stepButton.addEventListener("click", () => {
+      if (running) setRunning(false);
+      step();
+    });
+    resetButton.addEventListener("click", () => {
+      if (running) setRunning(false);
+      resetToSeed();
+    });
+    clearButton.addEventListener("click", () => {
+      if (running) setRunning(false);
+      grid = makeGrid();
+      generation = 0;
+      lastFlipCount = 0;
+      populationHistory = [];
+      fingerprintHistory = [];
+      seenFingerprints = new Map();
+      currentStatusLabel = "READY";
+      currentStatusReached = 0;
+      draw();
+      updateAnalysis();
+    });
+    speedSlider.addEventListener("input", () => {
+      speedReadoutEl.textContent = `${speedSlider.value} steps/sec`;
+      if (running) setRunning(true);
+    });
+    noiseSlider.addEventListener("input", () => {
+      noiseReadoutEl.textContent = `${noiseSlider.value}%`;
+    });
+    canvas.addEventListener("click", toggleCellFromPointer);
+    window.addEventListener("resize", draw);
+
+    speedReadoutEl.textContent = `${speedSlider.value} steps/sec`;
+    noiseReadoutEl.textContent = `${noiseSlider.value}%`;
+    resetToSeed();
+  </script>
+</body>
+</html>
